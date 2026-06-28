@@ -44,6 +44,8 @@ ShowInstDetails show
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_UNPAGE_FINISH
 
+; Languages - Portuguese first (default), then English
+!insertmacro MUI_LANGUAGE "Portuguese"
 !insertmacro MUI_LANGUAGE "English"
 
 ; ----------------------------------------------------------------
@@ -52,6 +54,27 @@ ShowInstDetails show
 Var /GLOBAL PreviousInstallDir
 Var /GLOBAL InstallType
 Var /GLOBAL RunAfterInstall
+Var /GLOBAL SelectedLanguage
+
+; ----------------------------------------------------------------
+; Language Strings
+; ----------------------------------------------------------------
+
+; Portuguese (default)
+LangString DESC_SecMain ${LANG_PORTUGUESE} "Aplicação Principal"
+LangString DESC_SecShortcuts ${LANG_PORTUGUESE} "Atalhos do Menu Iniciar"
+LangString DESC_SecDesktop ${LANG_PORTUGUESE} "Atalho na Área de Trabalho"
+LangString MSG_UpgradeFound ${LANG_PORTUGUESE} "Uma versão anterior do Damon Agent foi encontrada em:\n$PreviousInstallDir\n\nDeseja atualizá-la?"
+LangString MSG_AdminRequired ${LANG_PORTUGUESE} "Este instalador requer privilégios de administrador."
+LangString MSG_InstallSuccess ${LANG_PORTUGUESE} "O Damon Agent foi instalado com sucesso!\n\nExecute 'damon' em qualquer terminal para começar."
+
+; English
+LangString DESC_SecMain ${LANG_ENGLISH} "Main Application"
+LangString DESC_SecShortcuts ${LANG_ENGLISH} "Start Menu Shortcuts"
+LangString DESC_SecDesktop ${LANG_ENGLISH} "Desktop Shortcut"
+LangString MSG_UpgradeFound ${LANG_ENGLISH} "A previous version of Damon Agent was found at:\n$PreviousInstallDir\n\nDo you want to upgrade it?"
+LangString MSG_AdminRequired ${LANG_ENGLISH} "This installer requires administrator privileges."
+LangString MSG_InstallSuccess ${LANG_ENGLISH} "Damon Agent has been installed successfully!\n\nRun 'damon' from any terminal to get started."
 
 ; ----------------------------------------------------------------
 ; Functions
@@ -62,7 +85,7 @@ Function WelcomePage
     ReadRegStr $PreviousInstallDir HKLM "Software\Damon Agent" "Install_Dir"
     ${If} $PreviousInstallDir != ""
         ${If} ${FileExists} "$PreviousInstallDir\damon.exe"
-            MessageBox MB_YESNO "A previous version of Damon Agent was found at:\n$PreviousInstallDir\n\nDo you want to upgrade it?" IDYES NoUpgrade
+            MessageBox MB_YESNO "$(MSG_UpgradeFound)" IDYES NoUpgrade
             StrCpy $InstallDir $PreviousInstallDir
         NoUpgrade:
         ${EndIf}
@@ -88,7 +111,7 @@ FunctionEnd
 ; Sections
 ; ----------------------------------------------------------------
 
-Section "Main Application" SecMain
+Section "$(DESC_SecMain)" SecMain
     SectionIn RO
 
     ; Set output path
@@ -129,7 +152,7 @@ Section "Main Application" SecMain
 
 SectionEnd
 
-Section "Start Menu Shortcuts" SecShortcuts
+Section "$(DESC_SecShortcuts)" SecShortcuts
     SectionIn 1
     CreateDirectory "$SMPROGRAMS\Damon Agent"
     CreateShortcut "$SMPROGRAMS\Damon Agent\Damon Agent.lnk" "$InstallDir\damon.exe"
@@ -137,7 +160,7 @@ Section "Start Menu Shortcuts" SecShortcuts
     CreateShortcut "$SMPROGRAMS\Damon Agent\Documentation.url" "https://damon-agent.dev/docs"
 SectionEnd
 
-Section "Desktop Shortcut" SecDesktop
+Section "$(DESC_SecDesktop)" SecDesktop
     SectionIn 1
     CreateShortcut "$DESKTOP\Damon Agent.lnk" "$InstallDir\damon.exe"
 SectionEnd
@@ -186,7 +209,7 @@ Function .onInstSuccess
     ${EndIf}
 
     ; Show completion message
-    MessageBox MB_OK "Damon Agent has been installed successfully!\n\nRun 'damon' from any terminal to get started."
+    MessageBox MB_OK "$(MSG_InstallSuccess)"
 FunctionEnd
 
 Function .onUninstSuccess
