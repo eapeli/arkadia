@@ -62,6 +62,22 @@ damon               # começa a conversar!
 
 ---
 
+## 📦 Instaladores Binários (pré-compilados)
+
+Binários assinados estão disponíveis nas [Releases](https://github.com/eapeli/damon/releases):
+
+| Plataforma | Arquivo | Comando de instalação |
+|------------|---------|----------------------|
+| **Windows** | `Damon-Setup.exe` (NSIS, assinado via Azure) | Baixe e execute |
+| **macOS** | `Damon-Setup.dmg` (Apple notarizado) | `open Damon-Setup.dmg` → arraste para Applications |
+| **Linux** | `Damon-Setup.AppImage` (universal) | `chmod +x Damon-Setup.AppImage && ./Damon-Setup.AppImage` |
+| **Linux (Debian/Ubuntu)** | `damon-setup_1.0.0_amd64.deb` | `sudo dpkg -i damon-setup_1.0.0_amd64.deb` |
+| **Linux (RHEL/Fedora)** | `damon-setup-1.0.0-1.x86_64.rpm` | `sudo rpm -i damon-setup-1.0.0-1.x86_64.rpm` |
+
+> **Nota:** Os instaladores são gerados automaticamente via GitHub Actions a cada release. Verifique a aba [Releases](https://github.com/eapeli/damon/releases) para a versão mais recente.
+
+---
+
 ## 🎯 Primeiros Passos
 
 ```bash
