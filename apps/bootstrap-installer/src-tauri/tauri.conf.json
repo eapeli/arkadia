@@ -52,6 +52,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "artifactName": "Damon-Setup-${version}-${arch}.${ext}",
     "windows": {
       "webviewInstallMode": {
         "type": "embedBootstrapper"
@@ -73,7 +74,6 @@
         "displayLanguageSelector": true,
         "languages": ["Portuguese", "English"],
         "includeLicense": "LICENSE.md",
-        "artifactName": "Damon-Setup-${version}-${arch}.${ext}",
         "installerHeaderIcon": "icons/icon.ico",
         "installerSidebar": "icons/sidebar.bmp"
       }
@@ -81,11 +81,9 @@
     "macOS": {
       "minimumSystemVersion": "11.0",
       "hardenedRuntime": true,
-      "gatekeeperAssessment": "skip",
       "entitlements": "entitlements.plist",
-      "artifactName": "Damon-Setup-${version}-${arch}.${ext}",
       "dmg": {
-        "window": {
+        "windowSize": {
           "width": 540,
           "height": 380
         },
@@ -105,16 +103,13 @@
       }
     },
     "linux": {
-      "artifactName": "Damon-Setup-${version}-${arch}.${ext}",
       "deb": {
         "depends": ["libwebkit2gtk-4.1-0", "libayatana-appindicator3-1", "librsvg2-2"],
         "section": "devel",
         "priority": "optional"
       },
       "rpm": {
-        "depends": ["webkit2gtk4.1", "libayatana-appindicator-gtk3", "librsvg2"],
-        "license": "MIT",
-        "section": "Development/Tools"
+        "depends": ["webkit2gtk4.1", "libayatana-appindicator-gtk3", "librsvg2"]
       },
       "appimage": {
         "bundleMediaFramework": true
