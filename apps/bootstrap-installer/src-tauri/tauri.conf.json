@@ -52,7 +52,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "artifactName": "Damon-Setup-${version}-${arch}.${ext}",
     "windows": {
       "webviewInstallMode": {
         "type": "embedBootstrapper"
@@ -70,12 +69,7 @@
         "perMachine": true,
         "createDesktopShortcut": "always",
         "createStartMenuShortcut": true,
-        "shortcutName": "Damon Agent",
-        "displayLanguageSelector": true,
-        "languages": ["Portuguese", "English"],
-        "includeLicense": "LICENSE.md",
-        "installerHeaderIcon": "icons/icon.ico",
-        "installerSidebar": "icons/sidebar.bmp"
+        "shortcutName": "Damon Agent"
       }
     },
     "macOS": {
@@ -86,20 +80,7 @@
         "windowSize": {
           "width": 540,
           "height": 380
-        },
-        "contents": [
-          {
-            "x": 180,
-            "y": 170,
-            "type": "file"
-          },
-          {
-            "x": 360,
-            "y": 170,
-            "type": "link",
-            "path": "/Applications"
-          }
-        ]
+        }
       }
     },
     "linux": {
