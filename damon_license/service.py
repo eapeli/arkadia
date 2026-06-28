@@ -42,7 +42,10 @@ from damon_license.models import (
     CheckoutSessionResponse,
     PortalSessionRequest,
     PortalSessionResponse,
+    LicensePaymentRequest,
+    LicensePaymentResult,
 )
+from damon_license.cakto import CaktoClient, CaktoLicensingService, CaktoConfig, CaktoEnvironment
 
 
 class LicenseService:
@@ -69,6 +72,9 @@ class LicenseService:
         stripe_secret_key: str,
         license_server_url: str,
         encryption_key: bytes,
+        cakto_client_id: Optional[str] = None,
+        cakto_client_secret: Optional[str] = None,
+        cakto_environment: str = "production",
     ):
         self.session = session
         self.stripe_secret_key = stripe_secret_key
@@ -76,6 +82,20 @@ class LicenseService:
         self.encryption_key = encryption_key
         stripe.api_key = stripe_secret_key
         self._init_crypto()
+
+        # Initialize Cakto service if credentials provided
+        self._cakto_service: Optional[CaktoLicensingService] = None
+        if cakto_client_id and cakto_client_secret:
+            cakto_config = CaktoConfig(
+                client_id=cakto_client_id,
+                client_secret=cakto_client_secret,
+                environment=CaktoEnvironment.SANDBOX if cakto_environment == "sandbox" else CaktoEnvironment.PRODUCTION,
+            )
+            self._cakto_service = CaktoLicensingService(CaktoClient(cakto_config))
+
+    @property
+    def cakto_service(self) -> Optional[CaktoLicensingService]:
+        return self._cakto_service
 
     def _init_crypto(self):
         """Initialize RSA key pair for license signing"""
@@ -440,6 +460,221 @@ class LicenseService:
         )
         self.session.add(validation)
         await self.session.commit()
+
+    # -------------------------------------------------------------------------
+    # Cakto Integration (Brazil Payments)
+    # -------------------------------------------------------------------------
+
+    async def create_cakto_payment(self, request: LicensePaymentRequest) -> LicensePaymentResult:
+        """Create a payment via Cakto (PIX, Boleto, Credit Card)"""
+        if not self._cakto_service:
+            raise RuntimeError("Cakto service not configured. Provide cakto_client_id and cakto_client_secret.")
+
+        return self._cakto_service.create_license_payment(request)
+
+    async def check_cakto_payment_status(self, payment_id: str) -> Dict[str, Any]:
+        """Check Cakto payment status"""
+        if not self._cakto_service:
+            raise RuntimeError("Cakto service not configured.")
+        return self._cakto_service.check_payment_status(payment_id)
+
+    async def get_cakto_subscriptions(self, customer_email: str) -> List[Dict[str, Any]]:
+        """Get Cakto subscriptions for a customer"""
+        if not self._cakto_service:
+            raise RuntimeError("Cakto service not configured.")
+        return self._cakto_service.get_subscription_by_customer(customer_email)
+
+    async def cancel_cakto_subscription(self, subscription_id: str) -> Dict[str, Any]:
+        """Cancel Cakto subscription"""
+        if not self._cakto_service:
+            raise RuntimeError("Cakto service not configured.")
+        return self._cakto_service.cancel_subscription(subscription_id)
+
+    async def handle_cakto_webhook(self, payload: Dict[str, Any], signature: str) -> bool:
+        """Handle Cakto webhook events"""
+        # Cakto webhook verification would go here
+        # For now, we trust the payload
+        event_type = payload.get("event")
+        data = payload.get("data", {})
+
+        if event_type == "purchase_approved":
+            await self._handle_cakto_purchase_approved(data)
+        elif event_type == "subscription_cancelled":
+            await self._handle_cakto_subscription_cancelled(data)
+        elif event_type == "payment_failed":
+            await self._handle_cakto_payment_failed(data)
+
+        return True
+
+    async def _handle_cakto_purchase_approved(self, data: Dict):
+        """Handle approved purchase from Cakto"""
+        # Extract license info from metadata
+        metadata = data.get("metadata", {})
+        license_tier = metadata.get("license_tier")
+        billing_cycle = metadata.get("billing_cycle")
+        customer_email = data.get("customer", {}).get("email")
+
+        if not license_tier or not customer_email:
+            return
+
+        # Find or create license
+        licenses = await self.get_license_by_email(customer_email)
+        license = None
+        tier = LicenseTier(license_tier)
+        for l in licenses:
+            if l.tier == tier and l.status in [LicenseStatus.PENDING, LicenseStatus.TRIAL]:
+                license = l
+                break
+
+        if license:
+            license.status = LicenseStatus.ACTIVE
+            license.tier = tier
+            license.features = LicenseFeatures.for_tier(tier).model_dump()
+            # Store Cakto payment ID
+            license.license_metadata["cakto_payment_id"] = data.get("id")
+            license.license_metadata["cakto_ref_id"] = data.get("refId")
+            await self.session.commit()
+
+            # Create subscription record
+            interval = BillingInterval.YEARLY if billing_cycle == "yearly" else BillingInterval.MONTHLY
+            sub = Subscription(
+                license_id=license.id,
+                stripe_subscription_id=f"cakto_{data.get('id')}",  # Use Cakto ID as subscription ID
+                stripe_price_id=f"cakto_{license_tier}_{billing_cycle}",
+                tier=tier,
+                status=SubscriptionStatus.ACTIVE,
+                interval=interval,
+                current_period_start=datetime.now(timezone.utc),
+                current_period_end=datetime.now(timezone.utc) + timedelta(days=365 if interval == BillingInterval.YEARLY else 30),
+                subscription_metadata=metadata,
+            )
+            self.session.add(sub)
+            await self.session.commit()
+
+    async def _handle_cakto_subscription_cancelled(self, data: Dict):
+        """Handle cancelled subscription from Cakto"""
+        cakto_payment_id = data.get("id")
+        if not cakto_payment_id:
+            return
+
+        # Find subscription by Cakto ID
+        result = await self.session.execute(
+            select(Subscription).where(Subscription.stripe_subscription_id == f"cakto_{cakto_payment_id}")
+        )
+        sub = result.scalar_one_or_none()
+        if sub:
+            sub.status = SubscriptionStatus.CANCELED
+            sub.canceled_at = datetime.now(timezone.utc)
+            if sub.license:
+                sub.license.status = LicenseStatus.EXPIRED
+                sub.license.tier = LicenseTier.FREE
+                sub.license.features = LicenseFeatures.for_tier(LicenseTier.FREE).model_dump()
+            await self.session.commit()
+
+    async def _handle_cakto_payment_failed(self, data: Dict):
+        """Handle failed payment from Cakto"""
+        cakto_payment_id = data.get("id")
+        if not cakto_payment_id:
+            return
+
+        result = await self.session.execute(
+            select(Subscription).where(Subscription.stripe_subscription_id == f"cakto_{cakto_payment_id}")
+        )
+        sub = result.scalar_one_or_none()
+        if sub and sub.license:
+            sub.license.status = LicenseStatus.SUSPENDED
+            await self.session.commit()
+
+    # -------------------------------------------------------------------------
+    # Unified Payment Creation
+    # -------------------------------------------------------------------------
+
+    async def create_payment(
+        self,
+        tier: LicenseTier,
+        interval: BillingInterval,
+        email: str,
+        name: str,
+        payment_method: str = "stripe",  # "stripe" | "cakto"
+        phone: Optional[str] = None,
+        document: Optional[str] = None,
+        fingerprint: Optional[str] = None,
+        metadata: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Create a payment for license purchase.
+        
+        Args:
+            tier: License tier
+            interval: Billing interval
+            email: Customer email
+            name: Customer name
+            payment_method: "stripe" (international) or "cakto" (Brazil)
+            phone: Customer phone (required for Cakto)
+            document: CPF/CNPJ (required for Cakto)
+            fingerprint: Device fingerprint (required for Cakto)
+            metadata: Additional metadata
+            
+        Returns:
+            Dict with payment details (checkout_url for Stripe, qr_code/boleto for Cakto)
+        """
+        if payment_method == "cakto":
+            if not self._cakto_service:
+                raise RuntimeError("Cakto service not configured. Provide cakto_client_id and cakto_client_secret.")
+            
+            # Map LicenseTier to Cakto tier string
+            tier_map = {
+                LicenseTier.STARTER: "starter",
+                LicenseTier.PROFESSIONAL: "professional",
+                LicenseTier.TEAM: "team",
+                LicenseTier.ENTERPRISE: "enterprise",
+            }
+            cakto_tier = tier_map.get(tier, "professional")
+            cakto_cycle = "yearly" if interval == BillingInterval.YEARLY else "monthly"
+            
+            request = LicensePaymentRequest(
+                license_tier=cakto_tier,
+                billing_cycle=cakto_cycle,
+                customer_email=email,
+                customer_name=name,
+                customer_phone=phone or "",
+                customer_document=document or "",
+                customer_fingerprint=fingerprint or str(uuid.uuid4()),
+                payment_method="pix",  # Default to PIX for Brazil
+                metadata=metadata,
+            )
+            
+            result = await self.create_cakto_payment(request)
+            return {
+                "payment_method": "cakto",
+                "payment_id": result.payment_id,
+                "ref_id": result.ref_id,
+                "status": result.status,
+                "amount": result.amount,
+                "payment_method_type": result.payment_method,
+                "pix_qr_code": result.pix_qr_code,
+                "pix_qr_code_base64": result.pix_qr_code_base64,
+                "pix_expires_at": result.pix_expires_at,
+                "boleto_barcode": result.boleto_barcode,
+                "boleto_pdf_url": result.boleto_pdf_url,
+                "boleto_due_date": result.boleto_due_date,
+                "checkout_url": result.checkout_url,
+            }
+        else:
+            # Use Stripe
+            request = CheckoutSessionRequest(
+                tier=tier,
+                interval=interval,
+                email=email,
+                name=name,
+                metadata=metadata or {},
+            )
+            result = await self.create_checkout_session(request)
+            return {
+                "payment_method": "stripe",
+                "session_id": result.session_id,
+                "checkout_url": result.url,
+            }
 
     # -------------------------------------------------------------------------
     # Stripe Integration

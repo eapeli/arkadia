@@ -256,6 +256,33 @@ class PortalSessionResponse(BaseModel):
     url: str
 
 
+class LicensePaymentRequest(BaseModel):
+    license_tier: str
+    billing_cycle: str
+    customer_email: str
+    customer_name: str
+    customer_phone: str
+    customer_document: str
+    customer_fingerprint: str
+    payment_method: str
+    metadata: Optional[Dict[str, str]] = None
+
+
+class LicensePaymentResult(BaseModel):
+    payment_id: str
+    ref_id: str
+    status: str
+    amount: str
+    payment_method: str
+    pix_qr_code: Optional[str] = None
+    pix_qr_code_base64: Optional[str] = None
+    pix_expires_at: Optional[str] = None
+    boleto_barcode: Optional[str] = None
+    boleto_pdf_url: Optional[str] = None
+    boleto_due_date: Optional[str] = None
+    checkout_url: Optional[str] = None
+
+
 class WebhookEvent(BaseModel):
     id: str
     type: str
