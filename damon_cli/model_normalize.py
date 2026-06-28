@@ -60,7 +60,7 @@ _VENDOR_PREFIXES: dict[str, str] = {
     "nemotron": "nvidia",
     "llama": "meta-llama",
     "step": "stepfun",
-    "trinity": "arcee-ai",
+    "damon": "nous",
 }
 
 # Providers whose APIs consume vendor/model slugs.

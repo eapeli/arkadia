@@ -4,7 +4,7 @@ import { KbdCombo } from '@/components/ui/kbd'
 import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
-import { AudioLines, Layers3, Loader2, Square, SteeringWheel } from '@/lib/icons'
+import { AudioLines, Layers3, Loader2, Square, SteeringWheel, FolderOpened } from '@/lib/icons'
 import { formatCombo } from '@/lib/keybinds/combo'
 import { cn } from '@/lib/utils'
 
@@ -45,6 +45,7 @@ export function ComposerControls({
   conversation,
   disabled,
   hasComposerPayload,
+  onPickFolder,
   state,
   voiceStatus,
   onDictate,
@@ -57,6 +58,7 @@ export function ComposerControls({
   conversation: ConversationProps
   disabled: boolean
   hasComposerPayload: boolean
+  onPickFolder?: () => void
   state: ChatBarState
   voiceStatus: VoiceStatus
   onDictate: () => void
@@ -81,6 +83,21 @@ export function ComposerControls({
 
   return (
     <div className="ml-auto flex shrink-0 items-center gap-(--composer-control-gap)">
+      {onPickFolder && (
+        <Tip label="Abrir pasta do projeto (Ctrl+K, P)">
+          <Button
+            aria-label="Abrir pasta do projeto"
+            className={GHOST_ICON_BTN}
+            disabled={disabled}
+            onClick={onPickFolder}
+            size="icon"
+            type="button"
+            variant="ghost"
+          >
+            <FolderOpened size={16} />
+          </Button>
+        </Tip>
+      )}
       <DictationButton disabled={disabled} onToggle={onDictate} state={state.voice} status={voiceStatus} />
       {canSteer && (
         <Tip label={steerTip}>

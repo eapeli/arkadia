@@ -981,10 +981,11 @@ export function DesktopController() {
         }
       }}
       onEdit={editMessage}
-      onPasteClipboardImage={() => void composer.pasteClipboardImage()}
-      onPickFiles={() => void composer.pickContextPaths('file')}
-      onPickFolders={() => void composer.pickContextPaths('folder')}
-      onPickImages={() => void composer.pickImages()}
+onPasteClipboardImage={() => void composer.pasteClipboardImage()}
+        onPickFiles={() => void composer.pickContextPaths('file')}
+        onPickFolders={() => void composer.pickContextPaths('folder')}
+        onPickImages={() => void composer.pickImages()}
+        onPickFolder={() => void composer.pickContextPaths('folder')}
       onReload={reloadFromMessage}
       onRemoveAttachment={id => void composer.removeAttachment(id)}
       onRestoreToMessage={restoreToMessage}

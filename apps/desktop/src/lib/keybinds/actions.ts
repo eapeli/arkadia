@@ -55,6 +55,7 @@ export const KEYBIND_ACTIONS: readonly KeybindActionMeta[] = [
   // ── Composer ─────────────────────────────────────────────────────────────
   { id: 'composer.focus', category: 'composer', defaults: [] },
   { id: 'composer.modelPicker', category: 'composer', defaults: [] },
+  { id: 'composer.pickFolder', category: 'composer', defaults: ['mod+shift+p'] },
 
   // ── Profiles ─────────────────────────────────────────────────────────────
   { id: 'profile.default', category: 'profiles', defaults: ['mod+d'] },
