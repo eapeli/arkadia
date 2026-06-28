@@ -1,0 +1,8 @@
+# config/gateway/platforms.yaml
+platforms:
+  discord:
+    class: "gateway.platforms.discord.DiscordAdapter"
+    config_path: "config/gateway/platforms/discord.yaml"
+  telegram:
+    class: "gateway.platforms.telegram.TelegramAdapter"
+    config_path: "config/gateway/platforms/telegram.yaml"

@@ -1,0 +1,50 @@
+groups:
+  core:
+    - test_core_imports.py
+    - test_utils_truthy_values.py
+    - test_env_loader_secret_sources.py
+    - test_bitwarden_secrets.py
+    - test_damon_constants.py
+  cli:
+    - test_cli_help.py
+    - test_cli_manual_compress.py
+    - test_cli_file_drop.py
+    - test_cli_skin_integration.py
+  gateway:
+    - test_gateway_runner.py
+    - test_gateway_streaming_nested_config.py
+    - test_tui_gateway_server.py
+    - test_tui_gateway_ws.py
+  network:
+    - test_base_url_hostname.py
+    - test_ipv4_preference.py
+  install:
+    - test_install_no_initial_commit.py
+    - test_install_sh_browser_install.py
+    - test_install_sh_install_method_stamp.py
+    - test_install_sh_node_global_prefix.py
+    - test_install_sh_pythonpath_sanitization.py
+    - test_install_sh_root_fhs_uv_python_path.py
+    - test_install_sh_setup_wizard_tty_probe.py
+    - test_install_sh_symlink_stomp.py
+    - test_install_sh_termux_network_prereqs.py
+  packaging:
+    - test_packaging_metadata.py
+    - test_package_json_lazy_deps.py
+  ui:
+    - test_assistant_ui_tap_compat.py
+    - test_dashboard_sidecar_close_on_disconnect.py
+    - test_desktop_electron_pin.py
+    - test_desktop_mac_entitlements.py
+    - test_model_picker_scroll.py
+  providers:
+    - test_minimax_model_validation.py
+    - test_minimax_oauth.py
+    - test_ollama_num_ctx.py
+    - test_empty_model_fallback.py
+  agent:
+    - test_empty_session_hygiene.py
+    - test_ctx_halving_fix.py
+    - test_lazy_session_regressions.py
+    - test_dispatch_session_id.py
+    - test_batch_runner_checkpoint.py

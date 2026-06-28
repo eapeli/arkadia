@@ -1,0 +1,117 @@
+name: Build Linux Installer
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  authorize:
+    name: Authorize (admins only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check actor is a repo admin
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          perm=$(gh api \
+            "repos/${{ github.repository }}/collaborators/${ACTOR}/permission" \
+            --jq '.permission')
+          echo "Actor '${ACTOR}' has permission: ${perm}"
+          if [ "${perm}" != "admin" ]; then
+            echo "::error::'${ACTOR}' is not a repo admin (permission=${perm}). Refusing to build/sign."
+            exit 1
+          fi
+          echo "Authorized: '${ACTOR}' is an admin."
+
+  build:
+    name: Damon-Setup.AppImage
+    needs: authorize
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
+
+      - name: Cache Rust targets
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2
+        with:
+          workspaces: apps/bootstrap-installer/src-tauri
+
+      - name: Install system dependencies for Tauri Linux
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libvips-dev
+
+      - name: Build installer
+        run: npm run tauri:build
+        working-directory: apps/bootstrap-installer
+
+      - name: Create DEB package (optional)
+        run: |
+          cd apps/bootstrap-installer/src-tauri/target/release/bundle/deb
+          if [ -f *.deb ]; then
+            echo "DEB package created"
+            ls -la *.deb
+          fi
+        shell: bash
+
+      - name: Create RPM package (optional)
+        run: |
+          cd apps/bootstrap-installer/src-tauri/target/release/bundle/rpm
+          if [ -f *.rpm ]; then
+            echo "RPM package created"
+            ls -la *.rpm
+          fi
+        shell: bash
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: Damon-Setup-AppImage
+          path: apps/bootstrap-installer/src-tauri/target/release/bundle/appimage/*.AppImage
+
+      - name: Upload DEB package
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: Damon-Setup-deb
+          path: apps/bootstrap-installer/src-tauri/target/release/bundle/deb/*.deb
+
+      - name: Upload RPM package
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: Damon-Setup-rpm
+          path: apps/bootstrap-installer/src-tauri/target/release/bundle/rpm/*.rpm
+
+      - name: Upload raw binary
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: Damon-Setup-binary
+          path: apps/bootstrap-installer/src-tauri/target/release/damon-setup

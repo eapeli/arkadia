@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@damon/ink": ["src/types/damon-ink.d.ts"]
+    }
+  }
+}
