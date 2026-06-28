@@ -159,6 +159,11 @@ COMMAND_REGISTRY: list[CommandDef] = [
     CommandDef("busy", "Control what Enter does while Damon is working", "Configuration",
                cli_only=True, args_hint="[queue|steer|interrupt|status]",
                subcommands=("queue", "steer", "interrupt", "status")),
+    CommandDef("license", "License & subscription management", "Configuration",
+               args_hint="[activate|status|deactivate|info|portal|checkout|verify]",
+               subcommands=("activate", "status", "deactivate", "info", "portal", "checkout", "verify")),
+    CommandDef("billing", "Open billing portal for subscription management", "Configuration",
+               cli_only=True),
 
     # Tools & Skills
     CommandDef("tools", "Manage tools: /tools [list|disable|enable] [name...]", "Tools & Skills",

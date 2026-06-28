@@ -5,6 +5,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   authorize:
@@ -66,7 +67,7 @@ jobs:
         if: env.APPLE_DEVELOPER_ID != '' && env.APPLE_DEVELOPER_PASSWORD != '' && env.APPLE_TEAM_ID != ''
         uses: apple-actions/notarize@v1
         with:
-          app-path: apps/bootstrap-installer/src-tauri/target/release/bundle/dmg/Damon_0.0.1_aarch64.dmg
+          app-path: apps/bootstrap-installer/src-tauri/target/release/bundle/dmg/Damon Agent Setup_1.0.0_aarch64.dmg
           apple-id: ${{ secrets.APPLE_ID }}
           apple-id-password: ${{ secrets.APPLE_DEVELOPER_PASSWORD }}
           team-id: ${{ secrets.APPLE_TEAM_ID }}

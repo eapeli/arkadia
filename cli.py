@@ -7091,6 +7091,111 @@ class DamonCLI(CLIAgentSetupMixin, CLICommandsMixin):
         if result.success and result.requires_new_session:
             _cprint("    Tip: `/reset` starts a new session immediately.")
 
+    def _handle_license_command(self, cmd_original: str) -> None:
+        """Handle /license — license management commands."""
+        parts = cmd_original.split(None, 2)
+        subcmd = parts[1].lower() if len(parts) > 1 else "status"
+        arg = parts[2].strip() if len(parts) > 2 else ""
+
+        try:
+            from damon_license import get_license_client, LicenseCLI
+            client = get_license_client()
+            cli = LicenseCLI(client)
+
+            import asyncio
+
+            if subcmd in ("activate", "act"):
+                if not arg:
+                    _cprint("Usage: /license activate <key>")
+                    return
+                result = asyncio.run(cli.activate(arg))
+                if result.valid:
+                    _cprint(f"✓ License activated: {result.license.tier.value}")
+                else:
+                    _cprint(f"✗ Activation failed: {result.error}")
+
+            elif subcmd in ("status", "st"):
+                result = asyncio.run(cli.status())
+                if result.valid:
+                    _cprint(f"✓ License: {result.license.tier.value} ({result.license.status.value})")
+                    _cprint(f"  Email: {result.license.user_email}")
+                    _cprint(f"  Key: {result.license.key[:20]}...")
+                    if result.license.expires_at:
+                        _cprint(f"  Expires: {result.license.expires_at.strftime('%Y-%m-%d')}")
+                    if result.expires_in_days is not None:
+                        _cprint(f"  Days remaining: {result.expires_in_days}")
+                else:
+                    _cprint(f"✗ Invalid license: {result.error}")
+
+            elif subcmd in ("deactivate", "deact"):
+                cli.deactivate()
+                _cprint("✓ License deactivated locally")
+
+            elif subcmd in ("info", "i"):
+                info = cli.get_info()
+                for k, v in info.items():
+                    _cprint(f"  {k}: {v}")
+
+            elif subcmd in ("portal", "p"):
+                _cprint("Opening billing portal...")
+                import webbrowser
+                portal_url = asyncio.run(cli.open_portal())
+                webbrowser.open(portal_url)
+                _cprint(f"Opened: {portal_url}")
+
+            elif subcmd in ("verify", "v"):
+                key = arg or client.load_license_key()
+                if not key:
+                    _cprint("Usage: /license verify <key>")
+                    return
+                result = asyncio.run(client.validate_online(key))
+                if result.valid:
+                    _cprint(f"✓ Valid: {result.license.tier.value} ({result.license.user_email})")
+                else:
+                    _cprint(f"✗ Invalid: {result.error}")
+
+            else:
+                _cprint(f"Unknown license subcommand: {subcmd}")
+                _cprint("Available: activate, status, deactivate, info, portal, verify")
+
+        except ImportError:
+            _cprint("✗ License system not available. Install damon-license package.")
+        except Exception as e:
+            _cprint(f"✗ License error: {e}")
+
+    def _handle_billing_command(self, cmd_original: str) -> None:
+        """Handle /billing — open Stripe billing portal."""
+        try:
+            from damon_license import get_license_client
+            import asyncio
+            import webbrowser
+
+            client = get_license_client()
+            key = client.load_license_key()
+            if not key:
+                _cprint("No license key found. Activate a license first with /license activate")
+                return
+
+            async def get_portal_url():
+                import httpx
+                async with httpx.AsyncClient() as http:
+                    resp = await http.post(
+                        f"{client.server_url}/api/v1/license/portal",
+                        json={"license_key": key},
+                        timeout=30,
+                    )
+                    resp.raise_for_status()
+                    return resp.json()["url"]
+
+            url = asyncio.run(get_portal_url())
+            webbrowser.open(url)
+            _cprint(f"Opened billing portal: {url}")
+
+        except ImportError:
+            _cprint("✗ License system not available. Install damon-license package.")
+        except Exception as e:
+            _cprint(f"✗ Billing error: {e}")
+
     def _should_handle_model_command_inline(self, text: str, has_images: bool = False) -> bool:
         """Return True when /model should be handled immediately on the UI thread."""
         if not text or has_images or not _looks_like_slash_command(text):
@@ -7649,6 +7754,10 @@ class DamonCLI(CLIAgentSetupMixin, CLICommandsMixin):
             self._handle_voice_command(cmd_original)
         elif canonical == "busy":
             self._handle_busy_command(cmd_original)
+        elif canonical == "license":
+            self._handle_license_command(cmd_original)
+        elif canonical == "billing":
+            self._handle_billing_command(cmd_original)
         else:
             # Check for user-defined quick commands (bypass agent loop, no LLM call)
             base_cmd = cmd_lower.split()[0]
